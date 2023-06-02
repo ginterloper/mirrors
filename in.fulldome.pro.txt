@@ -1,0 +1,50 @@
+server {
+  listen 80;
+  listen [::]:80;
+  listen 443 ssl http2;
+  listen [::]:443 ssl http2;
+  {{ssl_certificate_key}}
+  {{ssl_certificate}}
+  server_name in.fulldome.pro;
+  {{root}}
+
+  {{nginx_access_log}}
+  {{nginx_error_log}}
+
+  if ($scheme != "https") {
+    rewrite ^ https://$host$uri permanent;
+  }
+  
+  location ~ /.well-known {
+    auth_basic off;
+    allow all;
+  }
+
+  {{settings}}
+
+  index index.html;
+
+  if (-f $request_filename) {
+    break;
+  }
+  
+
+  location / {  
+    root /var/www/in;
+    try_files $uri @static;
+  
+    proxy_pass https://fulldome.pro;
+    proxy_set_header Host            fulldome.pro;
+    #proxy_ssl_verify              off;
+    proxy_ssl_name $host;
+    proxy_set_header X_FORWARDED_PROTO https;
+    proxy_ssl_server_name on;
+    proxy_set_header X-Forwarded-For $remote_addr;
+  }
+  
+    location @static {
+    proxy_cookie_domain fulldome.pro in.fulldome.pro;
+    proxy_set_header      Host     fulldome.pro;
+    proxy_pass https://fulldome.pro;
+  }
+}
